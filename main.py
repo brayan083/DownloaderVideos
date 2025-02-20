@@ -34,7 +34,7 @@ def leer_enlaces(archivo):
 
 def configurar_driver():
     options = webdriver.ChromeOptions()
-    # options.add_argument('--headless')  # Ejecutar en modo headless (sin interfaz gráfica)
+    options.add_argument('--headless')  # Ejecutar en modo headless (sin interfaz gráfica)
     return webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
 def obtener_enlace_descarga(driver, enlace):
