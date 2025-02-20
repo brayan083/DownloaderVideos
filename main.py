@@ -1,8 +1,9 @@
 '''
 Cosas que hay que hacer antes de correr el script:
 1. Instalar Dependencias
-2. Cambiar el path de descarga en la linea 79
-3. este script puede tener muchos problemas usar con precaución
+2. Ejecutar el script siempre desde el disco C: porque si no se va a romper el programa
+3. Cambiar la variable download_dir por la ruta de descarga de tu navegador, por aqui se descargaran los videos.
+4. Cambiar la variable destination_dir por la ruta donde quieres que se guarden los videos descargados.
 '''
 
 import os
@@ -15,6 +16,13 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 import time
+
+# Variables globales
+download_dir = r'C:\Users\zorro\Downloads'
+destination_dir = r'C:\Users\zorro\Downloads\DownloaderVideos\videos'
+name_archive_list_link = 'enlaces_for_download.txt'
+name_archive_list_link_procesados = 'enlaces_download.txt'
+name_archive_list_link_error = 'enlaces_error_download.txt'
 
 # Configuración de logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -50,11 +58,15 @@ def obtener_enlace_descarga(driver, enlace):
 
 def esperar_descarga(download_dir):
     initial_files = set(os.listdir(download_dir))
+    start_time = time.time()
     while True:
         current_files = set(os.listdir(download_dir))
         new_files = current_files - initial_files
         if any(file.endswith('.mp4') for file in new_files):
             return new_files
+        if time.time() - start_time > 900:  # 15 minutes
+            logging.error('Tiempo de espera excedido para la descarga.')
+            return False
         time.sleep(1)
 
 def renombrar_archivo(download_dir, new_files, name_archive):
@@ -68,7 +80,6 @@ def renombrar_archivo(download_dir, new_files, name_archive):
     return None
 
 def mover_archivo(new_path, name_archive):
-    destination_dir = r'C:\Users\zorro\Downloads\videos test 20-2'
     if not os.path.exists(destination_dir):
         print('No existe la carpeta')
         os.makedirs(destination_dir)
@@ -99,7 +110,12 @@ def descargar_video(enlace, download_dir, name_archive):
             driver.switch_to.window(driver.window_handles[-1])
             
             logging.info(f'\033[93mDescargando archivo ...\033[0m')
+            
             new_files = esperar_descarga(download_dir)
+            if not new_files:
+                mover_enlaces_procesados('error')
+                return
+            
             new_path = renombrar_archivo(download_dir, new_files, name_archive)
             
             if new_path:
@@ -134,26 +150,30 @@ def obtener_titulo(driver, enlace):
     
 def mover_enlaces_procesados(estado):
     
-    with open('enlaces_for_download.txt', 'r', encoding='utf-8') as file:
+    with open(name_archive_list_link, 'r', encoding='utf-8') as file:
         primer_enlace = file.readline().strip()
     
     if (estado == 'completado'):
-        with open('enlaces_download.txt', 'a', encoding='utf-8') as file:
+        with open(name_archive_list_link_procesados, 'a', encoding='utf-8') as file:
             file.write(f'{primer_enlace}\n')
-        with open('enlaces_for_download.txt', 'r', encoding='utf-8') as file:
+        with open(name_archive_list_link, 'r', encoding='utf-8') as file:
             lines = file.readlines()
-        with open('enlaces_for_download.txt', 'w', encoding='utf-8') as file:
+        with open(name_archive_list_link, 'w', encoding='utf-8') as file:
             file.writelines(lines[1:])
             
     if (estado == 'error'):
-        with open('enlaces_error_download.txt', 'a', encoding='utf-8') as file:
+        with open(name_archive_list_link_error, 'a', encoding='utf-8') as file:
             file.write(f'{primer_enlace}\n')
+        with open(name_archive_list_link, 'r', encoding='utf-8') as file:
+            lines = file.readlines()
+        with open(name_archive_list_link, 'w', encoding='utf-8') as file:
+            file.writelines(lines[1:])
     
     logging.info(f'Enlace {primer_enlace} movido a procesados con estado: {estado}')
 
+
 def main():
-    enlaces = leer_enlaces('enlaces_for_download.txt')
-    download_dir = r'C:\Users\zorro\Downloads'
+    enlaces = leer_enlaces(name_archive_list_link)
         
     for enlace in enlaces:
         
